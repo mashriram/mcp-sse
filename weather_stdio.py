@@ -1,14 +1,14 @@
+# weather_stdio.py (Modified for Diagnostics)
+
 from typing import Any
 import httpx
 from mcp.server.fastmcp import FastMCP
-from starlette.applications import Starlette
-from mcp.server.sse import SseServerTransport
-from starlette.requests import Request
-from starlette.routing import Mount, Route
-from mcp.server import Server
-import uvicorn
+import asyncio
+import json
+import sys  # Import sys
 
-# Initialize FastMCP server for Weather tools (SSE)
+
+# Initialize FastMCP server
 mcp = FastMCP("weather")
 
 # Constants
@@ -18,10 +18,7 @@ USER_AGENT = "weather-app/1.0"
 
 async def make_nws_request(url: str) -> dict[str, Any] | None:
     """Make a request to the NWS API with proper error handling."""
-    headers = {
-        "User-Agent": USER_AGENT,
-        "Accept": "application/geo+json"
-    }
+    headers = {"User-Agent": USER_AGENT, "Accept": "application/geo+json"}
     async with httpx.AsyncClient() as client:
         try:
             response = await client.get(url, headers=headers, timeout=30.0)
@@ -44,12 +41,14 @@ Instructions: {props.get('instruction', 'No specific instructions provided')}
 
 
 @mcp.tool()
-async def get_alerts(state: str) -> str:
+async def get_alerts(state: str, session_id:str = "") -> str: # Modified function signature
     """Get weather alerts for a US state.
 
     Args:
         state: Two-letter US state code (e.g. CA, NY)
     """
+    print(f"get_alerts called with state={state}, session_id={session_id}", file=sys.stderr)  # Log to stderr
+
     url = f"{NWS_API_BASE}/alerts/active/area/{state}"
     data = await make_nws_request(url)
 
@@ -60,19 +59,21 @@ async def get_alerts(state: str) -> str:
         return "No active alerts for this state."
 
     alerts = [format_alert(feature) for feature in data["features"]]
-    return "\n---\n".join(alerts)
-
+    result_string = "\n---\n".join(alerts)
+    print(f"get_alerts result: {result_string}", file=sys.stderr)  # Log result
+    return result_string
 
 @mcp.tool()
-async def get_forecast(latitude: float, longitude: float) -> str:
+async def get_forecast(latitude: float, longitude: float, session_id: str = "") -> str: # Modified
     """Get weather forecast for a location.
 
     Args:
         latitude: Latitude of the location
         longitude: Longitude of the location
     """
+    print(f"get_forecast called with latitude={latitude}, longitude={longitude}, session_id={session_id}", file=sys.stderr)  # Log
+
     # First get the forecast grid endpoint
-    print(f"inside get_forecast(): {latitude}, {longitude}")
     points_url = f"{NWS_API_BASE}/points/{latitude},{longitude}"
     points_data = await make_nws_request(points_url)
 
@@ -98,45 +99,43 @@ Forecast: {period['detailedForecast']}
 """
         forecasts.append(forecast)
 
-    return "\n---\n".join(forecasts)
+    result_string = "\n---\n".join(forecasts)
+    print(f"get_forecast result: {result_string}", file=sys.stderr)  # Log result
+    return result_string
 
 
-def create_starlette_app(mcp_server: Server, *, debug: bool = False) -> Starlette:
-    """Create a Starlette application that can server the provied mcp server with SSE."""
-    sse = SseServerTransport("/messages/")
 
-    async def handle_sse(request: Request) -> None:
-        async with sse.connect_sse(
-                request.scope,
-                request.receive,
-                request._send,  # noqa: SLF001
-        ) as (read_stream, write_stream):
-            await mcp_server.run(
-                read_stream,
-                write_stream,
-                mcp_server.create_initialization_options(),
-            )
+async def main(): # Create main
+    reader = asyncio.StreamReader() # StreamReader
+    protocol = asyncio.StreamReaderProtocol(reader) # Stream Reader
 
-    return Starlette(
-        debug=debug,
-        routes=[
-            Route("/sse", endpoint=handle_sse),
-            Mount("/messages/", app=sse.handle_post_message),
-        ],
-    )
+    # Ensure it uses std.in
+    await asyncio.get_event_loop().connect_read_pipe(lambda: protocol, sys.stdin)
+    while True:
+        request = await reader.readline()
+        if not request:
+            print("No request found", file=sys.stderr)
+            break
+        try:
+            tool_request = json.loads(request)
+            tool_args = tool_request.get('arguments', {})
+            if "session_id" in tool_request:
+                tool_args["session_id"] = tool_request["session_id"]
 
+            if tool_request.get("tool_name") == 'get_forecast':
+                results = await get_forecast(**tool_args)
+                print("results: ", results)
+            elif tool_request.get("tool_name") == "get_alerts":
+                results = await get_alerts(**tool_args)
+                print("results", results)
+
+            if results:
+                sys.stdout.write(json.dumps({"result": results}) + "\n")
+                sys.stdout.flush() #ENSURE TO WRITE TO STDOUT
+        except json.JSONDecodeError:
+            print("Bad request found")
+            sys.stderr.write("Invalid JSON received\n")
 
 if __name__ == "__main__":
-    mcp_server = mcp._mcp_server  # noqa: WPS437
-
-    import argparse
-    
-    parser = argparse.ArgumentParser(description='Run MCP SSE-based server')
-    parser.add_argument('--host', default='0.0.0.0', help='Host to bind to')
-    parser.add_argument('--port', type=int, default=8080, help='Port to listen on')
-    args = parser.parse_args()
-
-    # Bind SSE request handling to MCP server
-    starlette_app = create_starlette_app(mcp_server, debug=True)
-
-    uvicorn.run(starlette_app, host=args.host, port=args.port)
+    # No mcp.run is happening
+    asyncio.run(main())
