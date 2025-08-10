@@ -1,0 +1,19 @@
+id: "wf_llm_1"
+name: "Sample LLM Workflow"
+nodes:
+  - id: "input_prompt"
+    type: "InputNode"
+    config:
+      prompt: "Why is the sky blue?"
+  - id: "llm_call"
+    type: "LLMNode"
+    config:
+      model_name: "claude-3-opus"
+  - id: "final_output"
+    type: "OutputNode"
+    config: {}
+connections:
+  - source: "input_prompt"
+    target: "llm_call"
+  - source: "llm_call"
+    target: "final_output"

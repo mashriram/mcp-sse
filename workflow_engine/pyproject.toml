@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "workflow-engine"
+version = "0.1.0"
+description = "A workflow engine for orchestrating LLM and MCP-based tasks."
+authors = ["Jules"]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+fastapi = "^0.110.0"
+pydantic = "^2.6.4"
+uvicorn = {extras = ["standard"], version = "^0.28.0"}
+pyyaml = "^6.0.1"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"

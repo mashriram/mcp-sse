@@ -1,0 +1,18 @@
+id: "wf_1"
+name: "Sample Weather Workflow"
+nodes:
+  - id: "node_1"
+    type: "InputNode"
+    config:
+      city: "Spokane"
+  - id: "node_2"
+    type: "WeatherNode"
+    config: {}
+  - id: "node_3"
+    type: "OutputNode"
+    config: {}
+connections:
+  - source: "node_1"
+    target: "node_2"
+  - source: "node_2"
+    target: "node_3"

@@ -1,0 +1,21 @@
+id: "wf_mcp_1"
+name: "Sample MCP Workflow"
+nodes:
+  - id: "input_args"
+    type: "InputNode"
+    config:
+      latitude: 47.6587
+      longitude: -117.426
+  - id: "mcp_call"
+    type: "MCPNode"
+    config:
+      server_url: "http://localhost:8080/sse"
+      tool_name: "get_forecast"
+  - id: "final_output"
+    type: "OutputNode"
+    config: {}
+connections:
+  - source: "input_args"
+    target: "mcp_call"
+  - source: "mcp_call"
+    target: "final_output"
