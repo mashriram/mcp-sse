@@ -1,67 +1,60 @@
-# SSE-based Server and Client for [MCP](https://modelcontextprotocol.io/introduction)
+# MCP Streamlit Chat Client
 
-[![smithery badge](https://smithery.ai/badge/@sidharthrajaram/mcp-sse)](https://smithery.ai/server/@sidharthrajaram/mcp-sse)
+This application provides a Streamlit-based web interface for chatting with a large language model (LLM) that can use tools from one or more MCP (Model Context Protocol) servers.
 
-This demonstrates a working pattern for SSE-based MCP servers and standalone MCP clients that use tools from them. Based on an original discussion [here](https://github.com/modelcontextprotocol/python-sdk/issues/145).
+## Features
 
-## Usage
+- **Web-based Chat Interface**: A user-friendly chat interface built with Streamlit.
+- **Connect to MCP Servers**: Connect to multiple MCP servers to make their tools available to the LLM.
+- **Groq Integration**: Uses the Groq API for fast LLM inference.
+- **Dynamic Tool Usage**: The LLM can decide which tools to use based on the user's query.
 
-**Note**: Make sure to supply `ANTHROPIC_API_KEY` in `.env` or as an environment variable.
+## Setup and Usage
 
-```
-uv run weather.py
+### 1. Prerequisites
 
-uv run client_sse.py http://0.0.0.0:8080/sse
-```
+- Python 3.8+
+- `uv` (or `pip`) for package installation.
 
-```
-Initialized SSE client...
-Listing tools...
+### 2. Installation
 
-Connected to server with tools: ['get_alerts', 'get_forecast']
+1.  **Clone the repository:**
+    ```bash
+    git clone <repository-url>
+    cd <repository-directory>
+    ```
 
-MCP Client Started!
-Type your queries or 'quit' to exit.
+2.  **Install the dependencies:**
+    ```bash
+    uv pip install -r requirements.txt
+    ```
 
-Query: whats the weather like in Spokane?
+### 3. Configure your API Key
 
-I can help you check the weather forecast for Spokane, Washington. I'll use the get_forecast function, but I'll need to use Spokane's latitude and longitude coordinates.
+The application requires a Groq API key. You can provide it in one of two ways:
 
-Spokane, WA is located at approximately 47.6587° N, 117.4260° W.
-[Calling tool get_forecast with args {'latitude': 47.6587, 'longitude': -117.426}]
-Based on the current forecast for Spokane:
+-   **Environment Variable**: Create a `.env` file in the root of the project and add the following line:
+    ```
+    GROQ_API_KEY="your-groq-api-key"
+    ```
+-   **In the UI**: Paste your API key directly into the "Groq API Key" field in the application's sidebar.
 
-Right now it's sunny and cold with a temperature of 37°F and ...
-```
+### 4. Running the MCP Servers
 
-## Why?
-
-This means the MCP server can now be some running process that agents (clients) connect to, use, and disconnect from whenever and wherever they want. In other words, an SSE-based server and clients can be decoupled processes (potentially even, on decoupled nodes). This is different and better fits "cloud-native" use-cases compared to the STDIO-based pattern where the client itself spawns the server as a subprocess.
-
-### Installing via Smithery
-
-To install SSE-based Server and Client for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@sidharthrajaram/mcp-sse):
+This client is designed to connect to MCP servers. An example `weather.py` server is provided. You can run it as follows:
 
 ```bash
-npx -y @smithery/cli install @sidharthrajaram/mcp-sse --client claude
+uv run weather.py
 ```
 
-### Server
+By default, the weather server runs on `http://localhost:8080`. You can run multiple servers on different ports and add them to the `AVAILABLE_SERVERS` dictionary in `app.py`.
 
-`weather.py` is a SSE-based MCP server that presents some tools based on the National Weather Service APIs. Adapted from the MCP docs' [example STDIO server implementation.](https://modelcontextprotocol.io/quickstart/server)
+### 5. Running the Streamlit App
 
-By default, server runs on 0.0.0.0:8080, but is configurable with command line arguments like:
+Once the dependencies are installed and the MCP servers are running, you can start the Streamlit application:
 
+```bash
+streamlit run app.py
 ```
-uv run weather.py --host <your host> --port <your port>
-```
 
-### Client
-
-`client.py` is a MCP Client that connects to and uses tools from the SSE-based MCP server. Adapted from the MCP docs' [example STDIO client implementation.](https://modelcontextprotocol.io/quickstart/client)
-
-By default, client connects to SSE endpoint provided in the command line argument like:
-
-```
-uv run client.py http://0.0.0.0:8080/sse
-```
+The application will open in your web browser. You can then enter your Groq API key, select the MCP servers you want to use, and start chatting with the LLM.
